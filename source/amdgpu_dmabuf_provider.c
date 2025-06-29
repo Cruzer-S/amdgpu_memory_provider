@@ -1,4 +1,5 @@
 #include "amdgpu_memory_provider.h"
+#include "amdgpu_dmabuf_provider.h"
 
 #include <stdlib.h>
 #include <stddef.h>
@@ -9,14 +10,6 @@
 
 #include <hsa/amd_hsa_common.h>
 #include <hsa/hsa_ext_amd.h>
-
-struct amdgpu_memory_buffer {
-	size_t size;
-	size_t offset;
-
-	void *memory;
-	int fd;
-};
 
 struct amdgpu_memory_buffer *amdgpu_dmabuf_alloc(size_t size)
 {
