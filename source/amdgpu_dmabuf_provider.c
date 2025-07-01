@@ -74,9 +74,18 @@ void amdgpu_dmabuf_memcpy_to(
 	);
 }
 
+void amdgpu_dmabuf_memmove_to(
+		struct amdgpu_memory_buffer *src, void *dst,
+		size_t offset, size_t size
+) {
+	hipMemcpy(&((char *) src->memory)[offset], dst,
+	   	  size, hipMemcpyDeviceToDevice);
+}
+
 struct amdgpu_memory_provider amdgpu_dmabuf_provider = {
 	.alloc = amdgpu_dmabuf_alloc,
 	.free = amdgpu_dmabuf_free,
 	.memcpy_from = amdgpu_dmabuf_memcpy_from,
-	.memcpy_to = amdgpu_dmabuf_memcpy_to
+	.memcpy_to = amdgpu_dmabuf_memcpy_to,
+	.memmove_to = amdgpu_dmabuf_memmove_to,
 };
