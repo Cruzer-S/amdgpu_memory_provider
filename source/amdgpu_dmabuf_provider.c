@@ -11,14 +11,14 @@
 #include <hsa/amd_hsa_common.h>
 #include <hsa/hsa_ext_amd.h>
 
-struct amdgpu_memory_buffer *amdgpu_dmabuf_alloc(size_t size)
+amdgpu_memory_buffer amdgpu_dmabuf_alloc(size_t size)
 {
-	struct amdgpu_memory_buffer *buffer;
+	struct amdgpu_dmabuf_buffer *buffer;
 	hipError_t error;
 	hsa_status_t status;
 
-	buffer = (struct amdgpu_memory_buffer *)
-		 malloc(sizeof(struct amdgpu_memory_buffer));
+	buffer = (struct amdgpu_dmabuf_buffer *)
+		 malloc(sizeof(struct amdgpu_dmabuf_buffer));
 	if (buffer == NULL)
 		goto RETURN_NULL;
 	
@@ -43,17 +43,20 @@ FREE_BUFFER:	free(buffer);
 RETURN_NULL:	return NULL;
 }
 
-void amdgpu_dmabuf_free(struct amdgpu_memory_buffer *buffer)
+void amdgpu_dmabuf_free(amdgpu_memory_buffer pbuffer)
 {
+	struct amdgpu_dmabuf_buffer *buffer = pbuffer;
+
 	hsa_amd_portable_close_dmabuf(buffer->fd);
 	(void) hipFree(buffer->memory);
 	free(buffer);
 }
 
 void amdgpu_dmabuf_memcpy_from(
-		void *dst, struct amdgpu_memory_buffer *src,
+		void *dst, amdgpu_memory_buffer psrc,
 		size_t offset, size_t size
 ) {
+	struct amdgpu_dmabuf_buffer *src = psrc;
 	hipError_t error;
 
 	error = hipMemcpy(
@@ -63,9 +66,10 @@ void amdgpu_dmabuf_memcpy_from(
 }
 
 void amdgpu_dmabuf_memcpy_to(
-		struct amdgpu_memory_buffer *dst, void *src,
+		amdgpu_memory_buffer pdst, void *src,
 		size_t offset, size_t size
 ) {
+	struct amdgpu_dmabuf_buffer *dst = pdst;
 	hipError_t error;
 
 	error = hipMemcpy(
@@ -75,9 +79,11 @@ void amdgpu_dmabuf_memcpy_to(
 }
 
 void amdgpu_dmabuf_memmove_to(
-		struct amdgpu_memory_buffer *src, void *dst,
+		amdgpu_memory_buffer psrc, void *dst,
 		size_t offset, size_t size
 ) {
+	struct amdgpu_dmabuf_buffer *src = psrc;
+
 	hipMemcpy(&((char *) src->memory)[offset], dst,
 	   	  size, hipMemcpyDeviceToDevice);
 }

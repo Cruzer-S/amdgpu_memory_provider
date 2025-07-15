@@ -3,7 +3,7 @@
 
 #include <stddef.h>
 
-struct amdgpu_memory_buffer {
+struct amdgpu_dmabuf_buffer {
 	size_t size;
 	size_t offset;
 
