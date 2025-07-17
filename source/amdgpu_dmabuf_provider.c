@@ -84,7 +84,7 @@ void amdgpu_dmabuf_memmove_to(
 ) {
 	struct amdgpu_dmabuf_buffer *src = psrc;
 
-	hipMemcpy(&((char *) src->memory)[offset], dst,
+	hipMemcpy(dst, &((char *) src->memory)[offset],
 	   	  size, hipMemcpyDeviceToDevice);
 }
 
