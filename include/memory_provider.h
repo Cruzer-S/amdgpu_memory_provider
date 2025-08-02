@@ -22,6 +22,7 @@ struct memory_provider {
 		size_t offset, size_t size
 	);
 	const char *(*get_error)(void);
+	size_t (*get_size)(Memory );
 };
 
 extern struct memory_provider amdgpu_memory_provider;

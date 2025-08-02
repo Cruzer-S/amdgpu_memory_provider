@@ -87,11 +87,17 @@ static const char *get_error(void)
 	return hipGetErrorString(error);
 }
 
+static size_t get_size(Memory memory)
+{
+	return ((AMDGPU_Memory) memory)->size;
+}
+
 struct memory_provider amdgpu_memory_provider = {
 	.alloc = memory_alloc,
 	.free = memory_free,
 	.memcpy_from = memcpy_from,
 	.memcpy_to = memcpy_to,
 	.memmove_to = memmove_to,
-	.get_error = get_error
+	.get_error = get_error,
+	.get_size = get_size
 };
