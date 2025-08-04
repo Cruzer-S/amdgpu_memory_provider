@@ -48,7 +48,6 @@ static int memory_free(Memory pmemory)
 static int memcpy_from(void *dst, Memory psrc, size_t offset, size_t size)
 {
 	AMDGPU_Memory src = (AMDGPU_Memory) psrc;
-	hipError_t error;
 
 	error = hipMemcpy(
 		dst, &((char *) src->context)[offset],
