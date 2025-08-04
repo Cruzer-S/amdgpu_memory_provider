@@ -5,6 +5,8 @@
 
 #include <hip/hip_runtime.h>
 
+#include <hsa/hsa_ext_amd.h>
+
 typedef struct amdgpu_memory {
 	size_t size;
 	size_t offset;
@@ -13,6 +15,7 @@ typedef struct amdgpu_memory {
 } *AMDGPU_Memory;
 
 static hipError_t error;
+static hsa_status_t status;
 
 static Memory memory_alloc(size_t size)
 {
@@ -100,3 +103,35 @@ struct memory_provider amdgpu_memory_provider = {
 	.get_error = get_error,
 	.get_size = get_size
 };
+
+int amdgpu_memory_get_dmabuf_id(Memory psrc)
+{
+	AMDGPU_Memory src = psrc;
+	int dmabuf_id;
+
+	status = hsa_amd_portable_export_dmabuf(
+		src->context,
+		src->size,
+		&dmabuf_id,
+		0
+	);
+
+	return status == HSA_STATUS_SUCCESS ? 0 : -1;
+}
+
+int amdgpu_memory_close_dmabuf(int dmabuf_id)
+{
+	status = hsa_amd_portable_close_dmabuf(dmabuf_id);
+
+	return status == HSA_STATUS_SUCCESS ? 0 : -1;
+}
+
+const char *amdgpu_memory_get_error(void)
+{
+	static const char *string;
+	hsa_status_t status;
+
+	status = hsa_status_string(status, &string);
+
+	return status == HSA_STATUS_SUCCESS ? string : NULL;
+}
