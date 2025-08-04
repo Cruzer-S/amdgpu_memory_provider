@@ -12,6 +12,8 @@ typedef struct amdgpu_memory {
 	size_t offset;
 
 	void *context;
+
+	int dmabuf_fd;
 } *AMDGPU_Memory;
 
 static hipError_t error;
@@ -104,24 +106,30 @@ struct memory_provider amdgpu_memory_provider = {
 	.get_size = get_size
 };
 
-int amdgpu_memory_get_dmabuf_id(Memory psrc)
+int amdgpu_memory_export_dmabuf(Memory psrc)
 {
 	AMDGPU_Memory src = psrc;
-	int dmabuf_id;
 
 	status = hsa_amd_portable_export_dmabuf(
 		src->context,
 		src->size,
-		&dmabuf_id,
-		0
+		&src->dmabuf_fd,
+		&src->offset
 	);
 
 	return status == HSA_STATUS_SUCCESS ? 0 : -1;
 }
 
-int amdgpu_memory_close_dmabuf(int dmabuf_id)
+int amdgpu_memory_get_dmabuf_fd(Memory src)
 {
-	status = hsa_amd_portable_close_dmabuf(dmabuf_id);
+	return ((AMDGPU_Memory) src)->dmabuf_fd;
+}
+
+int amdgpu_memory_close_dmabuf(Memory src)
+{
+	status = hsa_amd_portable_close_dmabuf(
+		((AMDGPU_Memory) src)->dmabuf_fd
+	);
 
 	return status == HSA_STATUS_SUCCESS ? 0 : -1;
 }
@@ -129,9 +137,8 @@ int amdgpu_memory_close_dmabuf(int dmabuf_id)
 const char *amdgpu_memory_get_error(void)
 {
 	static const char *string;
-	hsa_status_t status;
 
-	status = hsa_status_string(status, &string);
+	(void) hsa_status_string(status, &string);
 
-	return status == HSA_STATUS_SUCCESS ? string : NULL;
+	return string;
 }
