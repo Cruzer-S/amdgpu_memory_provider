@@ -74,12 +74,16 @@ static int memcpy_to(Memory pdst, void *src, size_t offset, size_t size)
 	return error == hipSuccess ? 0 : -1;
 }
 
-static int memmove_to(Memory psrc, void *dst, size_t offset, size_t size)
+static int memmove_to(Memory psrc, Memory pdst,
+		      size_t src_offset, size_t dst_offset,
+		      size_t size)
 {
 	AMDGPU_Memory src = (AMDGPU_Memory) psrc;
+	AMDGPU_Memory dst = (AMDGPU_Memory) pdst;
 
 	error = hipMemcpy(
-		&((char *) src->context)[offset], dst,
+		&((char *) src->context)[src_offset],
+		&((char *) dst->context)[dst_offset],
 	   	size, hipMemcpyDeviceToDevice
 	);
 
