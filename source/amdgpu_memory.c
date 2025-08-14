@@ -82,8 +82,8 @@ static int memmove_to(Memory psrc, Memory pdst,
 	AMDGPU_Memory dst = (AMDGPU_Memory) pdst;
 
 	error = hipMemcpy(
-		&((char *) src->context)[src_offset],
 		&((char *) dst->context)[dst_offset],
+		&((char *) src->context)[src_offset],
 	   	size, hipMemcpyDeviceToDevice
 	);
 
