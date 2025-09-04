@@ -3,12 +3,15 @@
 
 #include "memory_provider.h"
 
-int amdgpu_memory_export_dmabuf(Memory );
+MemoryProvider amdgpu_provider_create(void);
+void amdgpu_provider_destroy(MemoryProvider );
+
+int amdgpu_memory_export_dmabuf(MemoryProvider , Memory );
 
 int amdgpu_memory_get_dmabuf_fd(Memory );
 
 int amdgpu_memory_close_dmabuf(Memory );
 
-const char *amdgpu_memory_get_error(void);
+const char *amdgpu_memory_get_error(MemoryProvider );
 
 #endif

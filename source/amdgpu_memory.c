@@ -1,11 +1,27 @@
 #include "memory_provider.h"
 
 #include <stddef.h>
+#include <string.h>
 #include <stdlib.h>
 
-#include <hip/hip_runtime.h>
-
+#include <hsa/hsa.h>
 #include <hsa/hsa_ext_amd.h>
+
+struct memory_agent {
+	hsa_agent_t device;
+	hsa_amd_memory_pool_t memory_pool;
+};
+
+struct memory_provider function_table;
+
+typedef struct amdgpu_memory_provider {
+	struct memory_provider func_table;
+	struct memory_agent agent;
+
+	char dev_name[64];
+
+	hsa_status_t status;
+} *AMDGPU_MemoryProvider;
 
 typedef struct amdgpu_memory {
 	size_t size;
@@ -16,133 +32,82 @@ typedef struct amdgpu_memory {
 	int dmabuf_fd;
 } *AMDGPU_Memory;
 
-static hipError_t error;
-static hsa_status_t status;
-
-static Memory memory_alloc(size_t size)
+static hsa_status_t find_GPUs(hsa_agent_t device, void *data)
 {
-	AMDGPU_Memory memory;
+	AMDGPU_MemoryProvider provider;
+	hsa_device_type_t device_type;
+	char name[64];
 
-	memory = (AMDGPU_Memory) malloc(sizeof(struct amdgpu_memory));
-	if (memory == NULL)
+	provider = data;
+
+	provider->status = hsa_agent_get_info(
+		device, HSA_AGENT_INFO_DEVICE, &device_type
+	);
+	if (provider->status != HSA_STATUS_SUCCESS)
+		return provider->status;
+
+	if (device_type != HSA_DEVICE_TYPE_GPU)
+		return HSA_STATUS_SUCCESS;
+
+	provider->status = hsa_agent_get_info(
+		device, HSA_AGENT_INFO_NAME, name
+	);
+	if (provider->status != HSA_STATUS_SUCCESS)
+		return provider->status;
+
+	if (strcmp(provider->dev_name, name))
+		return HSA_STATUS_SUCCESS;
+
+	provider->agent.device = device;
+
+	return HSA_STATUS_SUCCESS;
+}
+
+MemoryProvider amdgpu_provider_create(char *dev_name)
+{
+	AMDGPU_MemoryProvider provider;
+	hsa_status_t status;
+
+	provider = (AMDGPU_MemoryProvider)
+		   malloc(sizeof(struct amdgpu_memory_provider));
+	if (provider == NULL)
 		goto RETURN_NULL;
-	
-	memory->size = size;
 
-	error = hipMalloc((void **) &memory->context, memory->size);
-	if (error != hipSuccess)
-		goto FREE_BUFFER;
+	status = hsa_init();
+	if (status != HSA_STATUS_SUCCESS)
+		goto FREE_PROVIDER;
 
-	return memory;
+	strncpy(provider->dev_name, dev_name, 64);
 
-FREE_HIP:	(void) hipFree(memory->context);
-FREE_BUFFER:	free(memory);
+	status = hsa_iterate_agents(find_GPUs, provider);
+	if (status != HSA_STATUS_SUCCESS)
+		goto FREE_PROVIDER;
+
+	provider->func_table = function_table;
+
+	return provider;
+FREE_PROVIDER:	free(provider);
 RETURN_NULL:	return NULL;
 }
 
-static int memory_free(Memory pmemory)
+void amdgpu_provider_destroy(MemoryProvider provider)
 {
-	AMDGPU_Memory memory = (AMDGPU_Memory) pmemory;
-
-	error = hipFree(memory->context);
-	free(memory);
-
-	return error == hipSuccess ? 0 : -1;
+	(void) hsa_shut_down();
+	free(provider);
 }
 
-static int memcpy_from(void *dst, Memory psrc, size_t offset, size_t size)
+int amdgpu_memory_get_dmabuf_fd(Memory memory)
 {
-	AMDGPU_Memory src = (AMDGPU_Memory) psrc;
-
-	error = hipMemcpy(
-		dst, &((char *) src->context)[offset],
-		size, hipMemcpyDeviceToHost
-	);
-
-	return error == hipSuccess ? 0 : -1;
+	return -1;
 }
 
-static int memcpy_to(Memory pdst, void *src, size_t offset, size_t size)
+int amdgpu_memory_close_dmabuf(Memory memory)
 {
-	AMDGPU_Memory dst = (AMDGPU_Memory) pdst;
-
-	error = hipMemcpy(
-		&((char *) dst->context)[offset], src,
-		size, hipMemcpyHostToDevice
-	);
-
-	return error == hipSuccess ? 0 : -1;
+	return -1;
 }
 
-static int memmove_to(Memory psrc, Memory pdst,
-		      size_t src_offset, size_t dst_offset,
-		      size_t size)
+const char *amdgpu_memory_get_error(MemoryProvider provider)
 {
-	AMDGPU_Memory src = (AMDGPU_Memory) psrc;
-	AMDGPU_Memory dst = (AMDGPU_Memory) pdst;
-
-	error = hipMemcpy(
-		&((char *) dst->context)[dst_offset],
-		&((char *) src->context)[src_offset],
-	   	size, hipMemcpyDeviceToDevice
-	);
-
-	return error == hipSuccess ? 0 : -1;
+	return NULL;
 }
 
-static const char *get_error(void)
-{
-	return hipGetErrorString(error);
-}
-
-static size_t get_size(Memory memory)
-{
-	return ((AMDGPU_Memory) memory)->size;
-}
-
-struct memory_provider amdgpu_memory_provider = {
-	.alloc = memory_alloc,
-	.free = memory_free,
-	.memcpy_from = memcpy_from,
-	.memcpy_to = memcpy_to,
-	.memmove_to = memmove_to,
-	.get_error = get_error,
-	.get_size = get_size
-};
-
-int amdgpu_memory_export_dmabuf(Memory psrc)
-{
-	AMDGPU_Memory src = psrc;
-
-	status = hsa_amd_portable_export_dmabuf(
-		src->context,
-		src->size,
-		&src->dmabuf_fd,
-		&src->offset
-	);
-
-	return status == HSA_STATUS_SUCCESS ? 0 : -1;
-}
-
-int amdgpu_memory_get_dmabuf_fd(Memory src)
-{
-	return ((AMDGPU_Memory) src)->dmabuf_fd;
-}
-
-int amdgpu_memory_close_dmabuf(Memory src)
-{
-	status = hsa_amd_portable_close_dmabuf(
-		((AMDGPU_Memory) src)->dmabuf_fd
-	);
-
-	return status == HSA_STATUS_SUCCESS ? 0 : -1;
-}
-
-const char *amdgpu_memory_get_error(void)
-{
-	static const char *string;
-
-	(void) hsa_status_string(status, &string);
-
-	return string;
-}
