@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 
 #include <hsa/hsa.h>
@@ -13,13 +14,17 @@
 void do_something(MemoryProvider gp, MemoryProvider rp,
 		  Memory vmem1, Memory vmem2, Memory rmem)
 {
-	for (int i = 0; i < 1024 * 1024; i++) {
-		if (memory_provider_copy_async(gp, vmem1, gp, vmem2, PAGE_SIZE) == -1)
-			exit(EXIT_FAILURE);
-	}
+	Memory buffer;
 
-	if (memory_provider_wait(gp) == -1)
+	for (int i = 0; i < PAGE_SIZE; i++)
+		((char *) rmem)[i] = ('a' + (i % 26));
+
+	if (memory_provider_allow_access(rp, gp, rmem) == -1)
 		exit(EXIT_FAILURE);
+
+	memory_provider_copy(gp, vmem1, rmem, PAGE_SIZE);
+
+	memory_provider_free(rp, (Memory) buffer);
 }
 
 int main(void)

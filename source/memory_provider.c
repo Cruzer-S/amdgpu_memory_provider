@@ -216,9 +216,27 @@ int memory_provider_free(MemoryProvider provider, Memory memory)
 	return 0;
 }
 
+int memory_provider_allow_access(MemoryProvider dst_prov,
+				 MemoryProvider src_prov,
+				 Memory dst_memory)
+{
+	dst_prov->status = hsa_amd_agents_allow_access(
+		2,
+		(hsa_agent_t [2]) { dst_prov->device, src_prov->device },
+		NULL,
+		dst_memory
+	);
+
+	if (dst_prov->status != HSA_STATUS_SUCCESS)
+		return -1;
+
+	return 0;
+}
+
 const char *memory_provider_get_error(MemoryProvider provider)
 {
 	hsa_status_string(provider->status, &provider->message);
 
 	return provider->message;
 }
+

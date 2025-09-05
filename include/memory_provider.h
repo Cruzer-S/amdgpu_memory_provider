@@ -20,6 +20,10 @@ void memory_provider_destroy(MemoryProvider );
 
 int memory_provider_wait(MemoryProvider provider);
 
+int memory_provider_allow_access(MemoryProvider dst_prov,
+				 MemoryProvider src_prov,
+				 Memory dst_memory);
+
 const char *memory_provider_get_error(MemoryProvider );
 
 #endif
