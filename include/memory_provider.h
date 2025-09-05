@@ -3,30 +3,23 @@
 
 #include <stddef.h>
 
-typedef void *Memory;
-typedef void *MemoryProvider;
+typedef struct memory_provider *MemoryProvider;
+typedef struct memory *Memory;
 
-struct memory_provider {
-	Memory (*alloc)(MemoryProvider , size_t size);
-	int (*free)(MemoryProvider , Memory ctx);
+MemoryProvider memory_provider_create(char *name);
 
-	int (*memcpy_from)(
-		MemoryProvider ,
-		void *dst, Memory src,
-		size_t offset, size_t size
-	);
-	int (*memcpy_to)(
-		MemoryProvider ,
-		Memory dst, void *src,
-		size_t offset, size_t size
-	);
-	int (*memmove_to)(
-		MemoryProvider ,
-		Memory src, Memory dst,
-		size_t src_offset, size_t dst_offset, size_t size
-	);
-	const char *(*get_error)(MemoryProvider );
-	size_t (*get_size)(MemoryProvider , Memory );
-};
+Memory memory_provider_alloc(MemoryProvider , size_t size);
+int memory_provider_copy(MemoryProvider dst_provider,
+			 Memory dst, Memory src, size_t size);
+int memory_provider_copy_async(MemoryProvider dst_prov, Memory dst,
+			       MemoryProvider src_prov, Memory src,
+			       size_t size);
+int memory_provider_free(MemoryProvider, Memory );
+
+void memory_provider_destroy(MemoryProvider );
+
+int memory_provider_wait(MemoryProvider provider);
+
+const char *memory_provider_get_error(MemoryProvider );
 
 #endif
