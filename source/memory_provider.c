@@ -19,6 +19,7 @@ struct memory_provider {
 	struct memory_pool memory_pool;
 
 	hsa_signal_t signal;
+	hsa_queue_t *queue;
 
 	char dev_name[64];
 
@@ -233,10 +234,30 @@ int memory_provider_allow_access(MemoryProvider dst_prov,
 	return 0;
 }
 
+int memory_provider_queue_create(MemoryProvider provider, void (*callback)(hsa_status_t status, hsa_queue_t *source, void *data))
+{
+	provider->status = hsa_queue_create(
+		provider->device,
+		1024, HSA_QUEUE_TYPE_SINGLE,
+		callback, provider,
+		UINT32_MAX, UINT32_MAX,
+		&provider->queue
+	);
+
+	if (provider->status != HSA_STATUS_SUCCESS)
+		return -1;
+
+	return 0;
+}
+
+void memory_provider_queue_destroy(MemoryProvider provider)
+{
+	(void) hsa_queue_destroy(provider->queue);
+}
+
 const char *memory_provider_get_error(MemoryProvider provider)
 {
 	hsa_status_string(provider->status, &provider->message);
 
 	return provider->message;
 }
-
